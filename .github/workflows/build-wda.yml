@@ -31,10 +31,16 @@ jobs:
             -derivedDataPath build \
             build
 
-      - name: Package ipa
+      - name: Strip signatures and package ipa
         run: |
+          APP=WebDriverAgent/build/Build/Products/Release-iphoneos/WebDriverAgentRunner-Runner.app
+          find "$APP" -name "_CodeSignature" -type d -exec rm -rf {} +
+          find "$APP" -name "*.framework" -exec codesign --remove-signature {} \;
+          codesign --remove-signature "$APP/WebDriverAgentRunner-Runner" || true
+          codesign --remove-signature "$APP/PlugIns/WebDriverAgentRunner.xctest/WebDriverAgentRunner" || true
+          rm -rf "$APP/PlugIns/WebDriverAgentRunner.xctest.dSYM"
           mkdir Payload
-          cp -R WebDriverAgent/build/Build/Products/Release-iphoneos/WebDriverAgentRunner-Runner.app Payload/
+          cp -R "$APP" Payload/
           zip -qry WDA.ipa Payload
 
       - name: Upload artifact
