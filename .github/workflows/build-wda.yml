@@ -1,0 +1,47 @@
+name: Build WebDriverAgent ipa
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - name: Clone WebDriverAgent source
+        run: |
+          git clone --depth 1 https://github.com/appium/WebDriverAgent.git
+          cd WebDriverAgent
+          echo "commit: $(git rev-parse HEAD)" > ../wda-version.txt
+
+      - name: Build (unsigned, for TrollStore)
+        run: |
+          cd WebDriverAgent
+          if [ -f WebDriverAgent.xcworkspace ]; then
+            PROJ_ARGS="-workspace WebDriverAgent.xcworkspace"
+          else
+            PROJ_ARGS="-project WebDriverAgent.xcodeproj"
+          fi
+          xcodebuild $PROJ_ARGS \
+            -scheme WebDriverAgentRunner \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            -derivedDataPath build \
+            build
+
+      - name: Package ipa
+        run: |
+          mkdir Payload
+          cp -R WebDriverAgent/build/Build/Products/Release-iphoneos/WebDriverAgentRunner-Runner.app Payload/
+          zip -qry WDA.ipa Payload
+          cp WebDriverAgent/wda-version.txt .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WDA-ipa
+          path: |
+            WDA.ipa
+            wda-version.txt
